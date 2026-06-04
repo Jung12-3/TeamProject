@@ -3,9 +3,8 @@ import mediapipe as mp # 사람의 손 관절을 인식해주는 구글의 인�
 import time         # 카운트다운 타이머를 만들기 위한 시간 계산 라이브러리
 import math         # 손가락 마디 사이의 거리를 계산하기 위한 수학 라이브러리
 
-# ---------------------------------------------------------
-# [이벤트] 마우스 클릭 감지 함수 (버튼을 누를 수 있게 해줌)
-# ---------------------------------------------------------
+
+# 마우스 클릭 감지 함수 (버튼을 누를 수 있게 해줌)
 exit_flag = False      # 프로그램을 끌지 말지 결정하는 스위치
 game_mode = "WINNER"   # 게임의 기본 목표 (기본값: 이긴 사람 찾기)
 
@@ -14,11 +13,11 @@ def mouse_click(event, x, y, flags, param):
     # 마우스 왼쪽 버튼이 '클릭' 되었을 때만 작동
     if event == cv2.EVENT_LBUTTONDOWN:
         
-        # 1. 우측 상단의 [EXIT] 버튼 영역(좌표)을 클릭했다면?
+        # 1. 우측 상단의 [EXIT] 버튼 영역(좌표)을 클릭했다면 -> 프로그램 종료
         if 1120 <= x <= 1260 and 15 <= y <= 65:
             exit_flag = True # 종료 스위치를 켬 (반복문이 멈춤)
             
-        # 2. 좌측 상단의 [MODE] 버튼 영역(좌표)을 클릭했다면?
+        # 2. 좌측 상단의 [MODE] 버튼 영역(좌표)을 클릭했다면 -> 이긴사람 or 진사람 정하기
         elif 20 <= x <= 320 and 75 <= y <= 125:
             # 현재 모드가 WINNER면 LOSER로, LOSER면 WINNER로 바꿈
             if game_mode == "WINNER": game_mode = "LOSER"
@@ -40,11 +39,11 @@ hands = mp_hands.Hands(
 
 # 2. 게임 상태 및 전적을 기록할 변수들 준비
 game_state = 0   # 게임 상태 (0:대기, 1:카운트다운, 2:손 내밀기 대기, 3:결과 창)
-start_time = 0   # 카운트다운용 시간을 담아둘 변수
+start_time = 0   # 카운트다운 시간을 담아둘 변수
 shoot_time = 0   # 누군가 처음 손을 낸 순간부터 '0.5초 유예시간'을 재기 위한 타이머
 
 total_games = 0  # 총 진행한 게임 수
-# 플레이어 1번~6번까지의 승리와 패배 횟수를 담아둘 사전(Dictionary)
+# 플레이어 1번~6번까지의 승리와 패배 횟수를 담아둠
 player_wins = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}   
 player_losses = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0} 
 
@@ -56,7 +55,7 @@ invalid_pids = []   # 안 내거나 늦게 내서 패널티를 받은 사람의 
 rps_list = ["ROCK", "PAPER", "SCISSORS"] # 정상적인 가위바위보 목록
 
 
-# 3. 인공지능 제스처 판별 로직 (권총 가위 + 360도 방향 인식)
+# 3. 제스처 판별 로직 (권총 가위 + 360도 방향 인식)
 def get_dist(p1, p2):
     return math.hypot(p1.x - p2.x, p1.y - p2.y) # 피타고라스 정리로 두 점 사이 거리 계산
 
@@ -83,16 +82,16 @@ def get_gesture(hand_landmarks):
     if is_standard_scissors or is_gun_scissors: return "SCISSORS" # 둘 중 하나면 가위
     elif open_fingers[1:] == [0, 0, 0, 0]: return "ROCK"          # 엄지 제외 4개가 다 접히면 바위
     elif open_fingers.count(1) >= 4: return "PAPER"               # 4개 이상 펴지면 보
-    else: return "UNKNOWN"                                        # 나머지는 이상한 모양
+    else: return "UNKNOWN"                                        # 나머지는 이상한 모양으로 인식
 
 
-# 4. [핵심] 다인용 판정 로직 (모드 적용 + 안 낸 사람 색출)
+# 4. 다인용 판정 로직 (모드 적용 + 안 낸 사람 색출)
 def get_multiplayer_result(player_choices_dict, current_mode):
-    # 1. 제대로 낸 사람(valid)과 안 내거나 이상하게 낸 사람(invalid)을 분류
+    # 제대로 낸 사람(valid)과 안 내거나 이상하게 낸 사람(invalid)을 분류
     valid_choices = {pid: g for pid, g in player_choices_dict.items() if g in rps_list}
     invalid_pids = [pid for pid, g in player_choices_dict.items() if g not in rps_list]
     
-    # 안 낸 사람이 있다면 띄울 '패널티 경고 문구' 생성
+    # 안 낸 사람이 있다면 띄울 경고 문구 생성
     penalty_text = ""
     if invalid_pids:
         penalty_text = f"[PENALTY] Late: P{', P'.join(map(str, invalid_pids))} LOSE!"
@@ -100,20 +99,20 @@ def get_multiplayer_result(player_choices_dict, current_mode):
     if not valid_choices: # 아무도 안 냈다면 무승부 반환
         return "DRAW! (NO ONE PLAYED)", penalty_text, [], invalid_pids
 
-    # 낸 손 모양들의 '종류'만 중복 없이 모음 (예: 바위와 가위만 나왔다면 길이는 2)
+    # 낸 손 모양들의 종류만 중복 없이 모음 (예: 바위와 가위만 나왔다면 길이는 2)
     unique_gestures = set(valid_choices.values())
     
-    # 2. [무승부 조건] 전부 같은 걸 냈거나(1종), 가위/바위/보가 다 나왔거나(3종)
+    # 무승부 -> 전부 같은 걸 냈거나(1종류), 가위/바위/보가 다 나왔거나(3종류)
     if len(unique_gestures) == 1 or len(unique_gestures) == 3:
         return f"DRAW! (IN {current_mode} MODE)", penalty_text, [], invalid_pids
             
-    # 3. 딱 2종류만 나왔을 때 승패 결정
+    # 딱 2종류만 나왔을 때 승패 결정
     winning_gesture, losing_gesture = "", ""
     if unique_gestures == {"ROCK", "SCISSORS"}: winning_gesture, losing_gesture = "ROCK", "SCISSORS"
     elif unique_gestures == {"SCISSORS", "PAPER"}: winning_gesture, losing_gesture = "SCISSORS", "PAPER"
     elif unique_gestures == {"PAPER", "ROCK"}: winning_gesture, losing_gesture = "PAPER", "ROCK"
     
-    # 4. 모드(WINNER vs LOSER)에 따라 정답 대상을 다르게 뽑음
+    # 모드(WINNER vs LOSER)에 따라 정답 대상을 다르게 뽑음
     if current_mode == "WINNER":
         targets = [pid for pid, g in valid_choices.items() if g == winning_gesture]
         target_text = "WINNERS: P" + ", P".join(map(str, targets))
@@ -126,10 +125,12 @@ def get_multiplayer_result(player_choices_dict, current_mode):
 
 # 5. 메인 루프 (카메라 영상 실시간 처리)
 cap = cv2.VideoCapture(0) # 0번 카메라 연결
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)  # 화면 크기 HD
+# 화면 크기를 HD로 설정
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280) 
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)  
 
-window_name = 'Ultimate Multiplayer RPS Referee'
+# 창 이름 설정
+window_name = 'RockPaperCissors Multiplayer AI Referee'
 cv2.namedWindow(window_name)
 cv2.setMouseCallback(window_name, mouse_click) # 마우스 클릭 이벤트 연결
 
@@ -244,12 +245,12 @@ while cap.isOpened() and not exit_flag:
 
     
     # 8. 클릭 가능한 UI 버튼 그리기
-    # [좌측 상단] MODE 전환 버튼
+    # 좌측 상단 -> MODE 전환 버튼
     mode_color = (0, 200, 0) if game_mode == "WINNER" else (0, 0, 200)
     cv2.rectangle(frame, (20, 75), (320, 125), mode_color, -1)
     cv2.putText(frame, f"MODE: {game_mode}", (35, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
     
-    # [우측 상단] EXIT 버튼
+    # 우측 상단 -> EXIT 버튼
     cv2.rectangle(frame, (1120, 15), (1260, 65), (0, 0, 255), -1) 
     cv2.putText(frame, "EXIT", (1155, 48), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 3)
             
